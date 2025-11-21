@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  mlflow-server:
+    image: ghcr.io/mlflow/mlflow:v3.6.0
+    command: mlflow server --backend-store-uri sqlite:///mlflow_data/mlflow.db --default-artifact-root /mlflow_data/artifacts --host 0.0.0.0 --port 5001 --allowed-hosts "*"
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./mlflow_data:/mlflow_data
+    networks:
+      - mlops-network
+
+  api-serving:
+    build:
+      context: .
+      dockerfile: src/serving/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow-server:5001
+    volumes:
+      - ./data:/app/data
+      - ./src:/app/src # Mount src for development/hot-reload if needed, though Dockerfile copies it
+      - ./model_logs:/app/logs
+      - ./mlflow_data:/Users/rafael/projects/machine-learning-tcc/mlflow_data
+    depends_on:
+      - mlflow-server
+    networks:
+      - mlops-network
+
+  frontend:
+    build:
+      context: ./src/frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api-serving:8000
+    depends_on:
+      - api-serving
+    networks:
+      - mlops-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alert.rules.yml:/etc/prometheus/alert.rules.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - mlops-network
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - mlops-network
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
+  model-monitor:
+    build:
+      context: ./src/monitoring
+    environment:
+      - PRODUCTION_LOGS_FILE=/app/logs/production_logs.jsonl
+      - METRICS_PORT=8001
+      - CHECK_INTERVAL=60
+    volumes:
+      - ./model_logs:/app/logs:ro
+    ports:
+      - "8001:8001"
+    networks:
+      - mlops-network
+
+volumes:
+  shared_data:
+
+
+networks:
+  mlops-network:
+    driver: bridge

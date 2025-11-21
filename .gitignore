@@ -1,0 +1,8 @@
+*.csv
+*.parquet
+data/*
+mlflow/*
+model_logs/*
+mlflow_data/*
+notebooks/mlruns/*
+src/serving/__pycache__/*

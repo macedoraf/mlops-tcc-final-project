@@ -1,0 +1,31 @@
+groups:
+  - name: api_alerts
+    rules:
+      - alert: HighLatency
+        expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1.0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Latency (P99 > 1s)"
+          description: "99th percentile latency is above 1 second for the last minute."
+
+      - alert: HighErrorRate
+        expr: (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) > 0.01
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High Error Rate (> 1%)"
+          description: "More than 1% of requests are failing with 5xx errors."
+
+  - name: model_alerts
+    rules:
+      - alert: ModelAccuracyDegradation
+        expr: model_accuracy < 0.80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Model Accuracy Low"
+          description: "Model accuracy has dropped below 80% (current value: {{ $value }})."
