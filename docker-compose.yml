@@ -21,9 +21,10 @@ services:
       - MLFLOW_TRACKING_URI=http://mlflow-server:5001
     volumes:
       - ./data:/app/data
-      - ./src:/app/src # Mount src for development/hot-reload if needed, though Dockerfile copies it
+      - ./src:/app/src
       - ./model_logs:/app/logs
       - ./mlflow_data:/Users/rafael/projects/machine-learning-tcc/mlflow_data
+      - ./feature_store:/app/feature_store
     depends_on:
       - mlflow-server
     networks:
@@ -71,6 +72,88 @@ services:
       - ./model_logs:/app/logs:ro
     ports:
       - "8001:8001"
+    networks:
+      - mlops-network
+
+  redis:
+    image: redis:7.0
+    ports:
+      - "6379:6379"
+    networks:
+      - mlops-network
+
+  postgres:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    networks:
+      - mlops-network
+
+  airflow-init:
+    build:
+      context: .
+      dockerfile: airflow/Dockerfile
+    command: version
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - _AIRFLOW_DB_MIGRATE=true
+      - _AIRFLOW_WWW_USER_CREATE=true
+      - _AIRFLOW_WWW_USER_USERNAME=airflow
+      - _AIRFLOW_WWW_USER_PASSWORD=airflow
+      - AIRFLOW__WEBSERVER__SECRET_KEY=this_is_a_very_secure_key_for_demo_purposes
+    depends_on:
+      - postgres
+    networks:
+      - mlops-network
+
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: airflow/Dockerfile
+    command: webserver
+    restart: always
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__WEBSERVER__SECRET_KEY=this_is_a_very_secure_key_for_demo_purposes
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./data:/opt/airflow/data
+      - ./feature_store:/opt/airflow/feature_store
+    networks:
+      - mlops-network
+
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: airflow/Dockerfile
+    command: scheduler
+    restart: always
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__WEBSERVER__SECRET_KEY=this_is_a_very_secure_key_for_demo_purposes
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./data:/opt/airflow/data
+      - ./feature_store:/opt/airflow/feature_store
     networks:
       - mlops-network
 
