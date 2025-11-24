@@ -9,3 +9,4 @@ src/serving/__pycache__/*
 *.db
 .DS_Store
 __pycache__
+feature_store/data/registry.db

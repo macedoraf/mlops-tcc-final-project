@@ -29,7 +29,7 @@ def train_model():
     
     print("Loading entity dataframe...")
     # Assuming the Airflow DAG has run and created this file
-    parquet_path = "data/processed/reviews_with_timestamps.parquet"
+    parquet_path = "data/processed/sentiment_features.parquet"
     if not os.path.exists(parquet_path):
         raise FileNotFoundError(f"{parquet_path} not found. Run Airflow DAG first.")
     
@@ -41,8 +41,8 @@ def train_model():
     training_df = store.get_historical_features(
         entity_df=entities_df,
         features=[
-            "sentiment_features:review_text",
-            "sentiment_features:sentiment_label",
+            "sentiment_features:text",
+            "sentiment_features:polarity",
         ],
     ).to_df()
 
@@ -52,8 +52,8 @@ def train_model():
     training_df.dropna(inplace=True)
 
     # 4. Prepare Data
-    X = training_df['review_text']
-    y = training_df['sentiment_label']
+    X = training_df['text']
+    y = training_df['polarity']
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
