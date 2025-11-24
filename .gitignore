@@ -6,3 +6,5 @@ model_logs/*
 mlflow_data/*
 notebooks/mlruns/*
 src/serving/__pycache__/*
+.db
+.DS_Store
