@@ -105,7 +105,7 @@ services:
       - _AIRFLOW_WWW_USER_CREATE=true
       - _AIRFLOW_WWW_USER_USERNAME=airflow
       - _AIRFLOW_WWW_USER_PASSWORD=airflow
-      - AIRFLOW__WEBSERVER__SECRET_KEY=this_is_a_very_secure_key_for_demo_purposes
+      - AIRFLOW__API__SECRET_KEY=this_is_a_very_secure_key_for_demo_purposes
     depends_on:
       - postgres
     networks:
@@ -118,20 +118,23 @@ services:
     command: webserver
     restart: always
     depends_on:
-      - postgres
-      - airflow-init
+      postgres:
+        condition: service_started
+      airflow-init:
+        condition: service_completed_successfully
     environment:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
       - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW__WEBSERVER__SECRET_KEY=this_is_a_very_secure_key_for_demo_purposes
+      - AIRFLOW__API__SECRET_KEY=this_is_a_very_secure_key_for_demo_purposes
     ports:
       - "8080:8080"
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./data:/opt/airflow/data
       - ./feature_store:/opt/airflow/feature_store
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - mlops-network
 
@@ -142,18 +145,21 @@ services:
     command: scheduler
     restart: always
     depends_on:
-      - postgres
-      - airflow-init
+      postgres:
+        condition: service_started
+      airflow-init:
+        condition: service_completed_successfully
     environment:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
       - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW__WEBSERVER__SECRET_KEY=this_is_a_very_secure_key_for_demo_purposes
+      - AIRFLOW__API__SECRET_KEY=this_is_a_very_secure_key_for_demo_purposes
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./data:/opt/airflow/data
       - ./feature_store:/opt/airflow/feature_store
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - mlops-network
 

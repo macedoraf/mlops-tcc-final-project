@@ -1,4 +1,4 @@
-FROM apache/airflow:latest
+FROM apache/airflow:2.9.1-python3.10
 
 USER root
 RUN apt-get update \
@@ -10,4 +10,4 @@ RUN apt-get update \
 
 
 USER airflow
-RUN pip3 install feast redis pandas pyarrow fastparquet
+RUN pip install feast redis pandas pyarrow fastparquet
