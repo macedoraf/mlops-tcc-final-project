@@ -11,9 +11,10 @@ RUN pip install --no-cache-dir \
     "protobuf>=5.26.0" \
     pandas \
     scikit-learn \
-    feast \
+    "feast[redis]" \
     mlflow \
-    pyarrow
+    pyarrow \
+    optuna
 
 # Set working directory
 WORKDIR /app

@@ -33,8 +33,6 @@ async def log_prediction(
     Args:
         prediction_id: Unique identifier for the prediction
         original_text: Original input text
-        translated_text: Translated text (if translation was performed)
-        language: Language code of the original text
         prediction: Predicted class (0 or 1)
         probability: Prediction probability/confidence
         model_version: Version of the model used
@@ -46,8 +44,6 @@ async def log_prediction(
             "prediction_id": prediction_id,
             "timestamp": datetime.utcnow().isoformat(),
             "original_text": original_text,
-            "translated_text": translated_text,
-            "language": language,
             "prediction": int(prediction),
             "probability": float(probability),
             "model_version": model_version,

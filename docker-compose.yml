@@ -24,6 +24,7 @@ services:
       - ./src:/app/src
       - ./model_logs:/app/logs
       - ./mlflow_data:/Users/rafael/projects/machine-learning-tcc/mlflow_data
+      - ./mlflow_data:/mlflow_data
       - ./feature_store:/app/feature_store
     depends_on:
       - mlflow-server

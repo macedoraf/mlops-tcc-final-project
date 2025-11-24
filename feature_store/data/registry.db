@@ -2,23 +2,24 @@
 ^
 @
 	review_idThe ID of the review"	review_idJamazon_sentiment
-¹İÉ°öôïµÉ€§ç
+¹İÉ°öôö¹É ¡2
 E
 '
 __dummy"
 __dummy_idJamazon_sentiment
-¹İÉ œøïµÉèñ1"$4030d89d-ba4e-4c29-89aa-7a8701fa5630*òµÉ¸éû=2‘
+¹İÉ œøö¹Éˆ™21"$535e8582-656f-4793-8399-05b79625d3dc*ù¹ÉØºÑ§2¶
 ²
 sentiment_features_viewamazon_sentiment	review_id"
 polarity"
 text*
 teammlops2€¼àß:¹event_timestamp*created_timestampZ.,../data/processed/sentiment_features.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢,../data/processed/sentiment_features.parquet@b
-	review_idZ
-¹İÉØæçòµÉˆõ=
+	review_id
+¹İÉØæçù¹É¸³É§
 ˜©­éúÿÿÿÿèÅ’–åÉ
 –åÉëÀÉ
-ëÀÉğµÉbÌevent_timestamp*created_timestampZ.,../data/processed/sentiment_features.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢,../data/processed/sentiment_features.parquetªamazon_sentimentŠ/
+ëÀÉğµÉ
+ğµÉé¸É
+é¸É÷¹ÉbÌevent_timestamp*created_timestampZ.,../data/processed/sentiment_features.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢,../data/processed/sentiment_features.parquetªamazon_sentimentŠ0
 
-amazon_sentiment
-¹İÉĞ¥Ï|
-ïµÉà†
+amazon_sentiment
+¹İÉĞ¥Ï|ö¹ÉĞí¤/

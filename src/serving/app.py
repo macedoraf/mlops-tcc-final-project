@@ -10,7 +10,6 @@ from uuid import uuid4
 
 import mlflow.sklearn
 from fastapi import FastAPI, BackgroundTasks, HTTPException
-from deep_translator import GoogleTranslator
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from src.serving.schemas import (
@@ -61,12 +60,22 @@ def load_model_from_mlflow() -> Tuple[Optional[Any], Optional[str]]:
         mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow-server:5001")
         mlflow.set_tracking_uri(mlflow_uri)
         
-        model_name = os.getenv("MLFLOW_MODEL_NAME", "SentimentAnalysis_Production")
-        model_version = "5"
+        model_name = "AmazonSentimentModel"
+        stage = "Production"
         
-        logger.info(f"Attempting to load model {model_name} version {model_version} from MLflow at {mlflow_uri}")
-        loaded_model = mlflow.sklearn.load_model(f"models:/{model_name}/{model_version}")
-        logger.info(f"Successfully loaded model from MLflow: {model_name}/{model_version}")
+        logger.info(f"Attempting to load model {model_name} (Stage: {stage}) from MLflow at {mlflow_uri}")
+        # Load the model from the Production stage
+        loaded_model = mlflow.sklearn.load_model(f"models:/{model_name}/{stage}")
+        
+        # Get the actual version number for logging (optional, requires client)
+        client = mlflow.tracking.MlflowClient()
+        latest_versions = client.get_latest_versions(model_name, stages=[stage])
+        if latest_versions:
+            model_version = latest_versions[0].version
+        else:
+            model_version = "unknown"
+            
+        logger.info(f"Successfully loaded model from MLflow: {model_name}/{stage} (Version: {model_version})")
         
         return loaded_model, model_version
         
@@ -93,39 +102,6 @@ async def startup_event():
     load_model()
 
 
-def translate_text(text: str, source_lang: str, target_lang: str = "en") -> Optional[str]:
-    """
-    Translate text from source language to target language.
-    
-    Args:
-        text: Text to translate
-        source_lang: Source language code
-        target_lang: Target language code (default: "en")
-    
-    Returns:
-        Translated text or None if translation fails
-    """
-    # Check cache first
-    cache_key = f"{source_lang}:{text}"
-    if cache_key in translation_cache:
-        logger.debug(f"Using cached translation for: {text[:50]}...")
-        return translation_cache[cache_key]
-    
-    try:
-        translator = GoogleTranslator(source=source_lang, target=target_lang)
-        translated = translator.translate(text)
-        
-        # Cache the translation
-        translation_cache[cache_key] = translated
-        
-        logger.info(f"Translated text from {source_lang} to {target_lang}")
-        return translated
-        
-    except Exception as e:
-        logger.error(f"Translation failed: {e}")
-        return None
-
-
 @app.post("/predict", response_model=PredictResponse)
 async def predict(request: PredictRequest, background_tasks: BackgroundTasks):
     """
@@ -142,12 +118,34 @@ async def predict(request: PredictRequest, background_tasks: BackgroundTasks):
     text_to_predict = original_text
 
     try:
-        if not hasattr(model, "predict") or not hasattr(model, "predict_proba"):
+        if not hasattr(model, "predict"):
             raise Exception("Loaded model does not support prediction. Check MLflow saving.")
 
         logger.info(f"Predicting for text: {text_to_predict}")
-        prediction_proba = model.predict_proba([text_to_predict])[0]
         prediction_class = int(model.predict([text_to_predict])[0])
+        
+        # Calculate confidence/probability
+        if hasattr(model, "predict_proba"):
+            # For models with predict_proba (e.g., LogisticRegression)
+            prediction_proba = model.predict_proba([text_to_predict])[0]
+            probability = float(max(prediction_proba))
+        elif hasattr(model, "decision_function"):
+            # For LinearSVC and similar models
+            decision_values = model.decision_function([text_to_predict])[0]
+            # Convert decision function to pseudo-probability using sigmoid
+            if isinstance(decision_values, (list, tuple)) or hasattr(decision_values, '__len__'):
+                # Multi-class case
+                import numpy as np
+                exp_values = np.exp(decision_values - np.max(decision_values))
+                probabilities = exp_values / exp_values.sum()
+                probability = float(max(probabilities))
+            else:
+                # Binary case
+                from math import exp
+                probability = 1 / (1 + exp(-abs(decision_values)))
+        else:
+            # Fallback
+            probability = 0.5
 
         if prediction_class == 1:
             sentiment = "NEGATIVE"
@@ -160,7 +158,7 @@ async def predict(request: PredictRequest, background_tasks: BackgroundTasks):
             sentiment = "POSITIVE" if prediction_class > 1 else "NEGATIVE"
             prediction_binary = 1 if prediction_class > 1 else 0
 
-        probability = float(max(prediction_proba))
+        probability = float(probability)
 
         # 5. Log em background
         background_tasks.add_task(
@@ -169,7 +167,7 @@ async def predict(request: PredictRequest, background_tasks: BackgroundTasks):
             original_text=original_text,
             prediction=prediction_binary,
             probability=probability,
-            model_version=model_version
+            model_version=model_version,
         )
 
         # 6. Retorno estruturado
@@ -254,6 +252,25 @@ async def health():
     }
 
 
+@app.post("/reload")
+async def reload_model():
+    """
+    Force reload of the model from MLflow (Production stage).
+    Useful for continuous deployment without restarting the container.
+    """
+    global model, model_version
+    try:
+        new_model, new_version = load_model_from_mlflow()
+        if new_model:
+            model = new_model
+            model_version = new_version
+            return {"status": "success", "message": f"Model reloaded successfully. Version: {model_version}"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to load model from MLflow")
+    except Exception as e:
+        logger.error(f"Error reloading model: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/")
 async def root():
     """Root endpoint with API information."""
@@ -266,6 +283,7 @@ async def root():
             "feedback": "/feedback",
             "metrics": "/metrics/realtime",
             "health": "/health",
+            "reload": "/reload",
             "docs": "/docs"
         }
     }

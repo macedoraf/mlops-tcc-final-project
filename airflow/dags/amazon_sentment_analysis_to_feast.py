@@ -5,6 +5,7 @@ import zipfile
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator
+from airflow.datasets import Dataset
 
 # Constants
 ROOT_PATH = "/opt/airflow/data"
@@ -214,6 +215,7 @@ with DAG(
     feast_materialize = BashOperator(
         task_id='feast_materialize',
         bash_command=f'cd {FEATURE_STORE_PATH} && /home/airflow/.local/bin/feast materialize-incremental $(date -u +"%Y-%m-%dT%H:%M:%S")',
+        outlets=[Dataset(f"file://{PROCESSED_PATH}")],
     )
 
     extract_data >> process_data >> feast_apply >> feast_materialize
