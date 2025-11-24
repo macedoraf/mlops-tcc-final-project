@@ -13,11 +13,13 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
+from airflow.datasets import Dataset
+
 dag = DAG(
     'continuous_training_dag',
     default_args=default_args,
     description='A simple Continuous Training DAG',
-    schedule_interval=timedelta(days=1),
+    schedule=[Dataset("file:///opt/airflow/data/processed/sentiment_features.parquet")],
     catchup=False,
 )
 

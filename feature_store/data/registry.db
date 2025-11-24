@@ -1,25 +1,26 @@
 
-^
+_
 @
-	review_idThe ID of the review"	review_idJamazon_sentiment
-¹İÉ°öôö¹É ¡2
-E
+	review_idThe ID of the review"	review_idJamazon_sentiment
+¹İÉ°öôš×É°±¾ì
+F
 '
 __dummy"
-__dummy_idJamazon_sentiment
-¹İÉ œøö¹Éˆ™21"$535e8582-656f-4793-8399-05b79625d3dc*ù¹ÉØºÑ§2¶
+__dummy_idJamazon_sentiment
+¹İÉ œøš×É†Âì1"$a0167789-e808-40f9-9c1e-e736fb4873c8* ×É ‹ŞÉ2É
 ²
 sentiment_features_viewamazon_sentiment	review_id"
 polarity"
 text*
 teammlops2€¼àß:¹event_timestamp*created_timestampZ.,../data/processed/sentiment_features.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢,../data/processed/sentiment_features.parquet@b
-	review_id
-¹İÉØæçù¹É¸³É§
+	review_id‘
+¹İÉØæç ×Éˆ®ÕÉ
 ˜©­éúÿÿÿÿèÅ’–åÉ
 –åÉëÀÉ
 ëÀÉğµÉ
 ğµÉé¸É
-é¸É÷¹ÉbÌevent_timestamp*created_timestampZ.,../data/processed/sentiment_features.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢,../data/processed/sentiment_features.parquetªamazon_sentimentŠ0
+é¸É÷¹É
+÷¹É›×ÉbÌevent_timestamp*created_timestampZ.,../data/processed/sentiment_features.parquetŠ1feast.infra.offline_stores.file_source.FileSource¢,../data/processed/sentiment_features.parquetªamazon_sentimentŠ1
 
-amazon_sentiment
-¹İÉĞ¥Ï|ö¹ÉĞí¤/
+amazon_sentiment
+¹İÉĞ¥Ï|š×ÉøãØé

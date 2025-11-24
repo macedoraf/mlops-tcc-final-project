@@ -22,10 +22,10 @@ groups:
   - name: model_alerts
     rules:
       - alert: ModelAccuracyDegradation
-        expr: model_accuracy < 0.80
+        expr: model_accuracy < 0.85
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: "Model Accuracy Low"
-          description: "Model accuracy has dropped below 80% (current value: {{ $value }})."
+          description: "Model accuracy has dropped below 85% (current value: {{ $value }})."

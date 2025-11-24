@@ -6,6 +6,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator
 from airflow.datasets import Dataset
+import logging
 
 # Constants
 ROOT_PATH = "/opt/airflow/data"
@@ -14,50 +15,39 @@ DATA_EXTRACTED_PATH = f"{ROOT_PATH}/extracted"
 FEATURE_STORE_PATH = "/opt/airflow/feature_store"
 PROCESSED_PATH = f"{ROOT_PATH}/processed/sentiment_features.parquet"
 KAGGLE_URL = "https://www.kaggle.com/api/v1/datasets/download/kritanjalijain/amazon-reviews"
+# Ajuste o total de amostras por classe conforme necessário
+SAMPLES_PER_CLASS = 25 * 1000 
 
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 0    ,
+    'retries': 0,
     'retry_delay': timedelta(minutes=5),
 }
-
-import logging
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-def process_data_logic(extracted_path, processed_path, samples_per_class=1000):
+def process_data_logic(extracted_path, processed_path, samples_per_class=SAMPLES_PER_CLASS):
     """
-    Core logic for processing data: reads CSVs, balances by class AND text length, adds timestamps, and saves to Parquet.
-    Estratégia: 3 Bins (Curto, Médio, Longo).
-    Meta: 1/3 das amostras para cada bin dentro de cada classe.
+    Core logic for processing data: reads CSVs, balances ONLY by polarity, 
+    adds timestamps, and saves to Parquet.
     """
     try:
-        logger.info(f"Starting stratified data processing. Reading from {extracted_path}")
+        logger.info(f"Starting balanced processing (Polarity Only). Target: {samples_per_class} per class.")
         
-        # Definição dos Bins (Limites de caracteres)
-        BIN_SHORT = 150
-        BIN_MEDIUM = 600
-        
-        # Meta de amostras por sub-grupo (ex: Positivo-Curto, Positivo-Médio...)
-        quota_per_subgroup = samples_per_class // 3
-        
-        # Dicionário para armazenar os dados separadamente
-        # Estrutura: data_store[classe][bin]
+        # Dicionário simplificado para armazenar os textos por polaridade
+        # 1: Negativo, 2: Positivo
         data_store = {
-            1: {'short': [], 'medium': [], 'long': []}, # Classe 1 (Negativo no Raw)
-            2: {'short': [], 'medium': [], 'long': []}  # Classe 2 (Positivo no Raw)
+            1: [], 
+            2: []
         }
         
         chunk_size = 100000
         chunks_processed = 0
         
-        # We process both train and test files as a single source for simplicity in this pipeline, 
-        # or we could process them separately. The original DAG combined them. 
-        # Let's iterate over both files.
         input_files = [f"{extracted_path}/train.csv", f"{extracted_path}/test.csv"]
         
         for file_path in input_files:
@@ -67,10 +57,12 @@ def process_data_logic(extracted_path, processed_path, samples_per_class=1000):
                 
             logger.info(f"Processing file: {file_path}")
             
+            # Lê o arquivo em chunks para evitar estouro de memória
             for chunk in pd.read_csv(file_path, chunksize=chunk_size, header=None, names=['polarity', 'title', 'text']):    
                 chunks_processed += 1
                 if chunks_processed % 10 == 0:
                     logger.info(f"Processing chunk {chunks_processed}...")
+                    logger.info(f"Current counts -> Neg(1): {len(data_store[1])}, Pos(2): {len(data_store[2])}")
 
                 # 1. Limpeza Básica
                 chunk = chunk.dropna(subset=["text", "polarity"])
@@ -78,66 +70,51 @@ def process_data_logic(extracted_path, processed_path, samples_per_class=1000):
                 chunk['title'] = chunk['title'].fillna("").astype(str)
                 chunk['polarity'] = chunk['polarity'].astype(int)
                 
-                # 2. Calcular tamanho e enriquecer texto (Título + Texto)
+                # 2. Enriquecer texto (Título + Texto)
                 chunk['text'] = chunk['title'] + " " + chunk['text']
-                chunk['char_len'] = chunk['text'].str.len()
                 
-                # 3. Iterar sobre as classes (1 e 2)
+                # 3. Coleta balanceada por classe
                 for sentiment in [1, 2]:
-                    # Filtra pelo sentimento atual
-                    df_sent = chunk[chunk['polarity'] == sentiment]
-                    
-                    if df_sent.empty: continue
+                    # Se já atingimos a cota para este sentimento, pule
+                    if len(data_store[sentiment]) >= samples_per_class:
+                        continue
 
-                    # --- Bin Curto ---
-                    if len(data_store[sentiment]['short']) < quota_per_subgroup:
-                        needed = quota_per_subgroup - len(data_store[sentiment]['short'])
-                        subset = df_sent[df_sent['char_len'] < BIN_SHORT]
-                        data_store[sentiment]['short'].extend(subset[['text', 'polarity']].head(needed).values.tolist())
+                    # Filtra o chunk atual pelo sentimento
+                    current_samples = chunk[chunk['polarity'] == sentiment]['text'].tolist()
                     
-                    # --- Bin Médio ---
-                    if len(data_store[sentiment]['medium']) < quota_per_subgroup:
-                        needed = quota_per_subgroup - len(data_store[sentiment]['medium'])
-                        subset = df_sent[(df_sent['char_len'] >= BIN_SHORT) & (df_sent['char_len'] < BIN_MEDIUM)]
-                        data_store[sentiment]['medium'].extend(subset[['text', 'polarity']].head(needed).values.tolist())
-                        
-                    # --- Bin Longo ---
-                    if len(data_store[sentiment]['long']) < quota_per_subgroup:
-                        needed = quota_per_subgroup - len(data_store[sentiment]['long'])
-                        subset = df_sent[df_sent['char_len'] >= BIN_MEDIUM]
-                        data_store[sentiment]['long'].extend(subset[['text', 'polarity']].head(needed).values.tolist())
+                    # Calcula quantos faltam para completar a cota
+                    needed = samples_per_class - len(data_store[sentiment])
+                    
+                    # Adiciona o necessário (ou tudo o que tiver no chunk se for menos que o necessário)
+                    if current_samples:
+                        data_store[sentiment].extend(current_samples[:needed])
 
-                # Critério de Parada: Verificamos se TODOS os baldes estão cheios
-                full_buckets = 0
-                total_buckets = 6 # 2 classes * 3 bins
-                for s in [1, 2]:
-                    for b in ['short', 'medium', 'long']:
-                        if len(data_store[s][b]) >= quota_per_subgroup:
-                            full_buckets += 1
-                
-                if full_buckets == total_buckets:
-                    logger.info(f"All bins filled at chunk {chunks_processed}!")
+                # Critério de Parada: Se ambas as classes atingiram a cota
+                if len(data_store[1]) >= samples_per_class and len(data_store[2]) >= samples_per_class:
+                    logger.info(f"All classes balanced and filled at chunk {chunks_processed}!")
                     break
             
-            if full_buckets == total_buckets:
+            # Quebra o loop de arquivos se já terminou
+            if len(data_store[1]) >= samples_per_class and len(data_store[2]) >= samples_per_class:
                 break
         
         # 4. Consolidação
         final_rows = []
-        for s in [1, 2]:
-            # Mapeia label: 1(Neg) -> 0, 2(Pos) -> 1
-            mapped_label = 0 if s == 1 else 1
-            for b in ['short', 'medium', 'long']:
-                # Adiciona ao resultado final ajustando o label
-                for text, _ in data_store[s][b]:
-                    final_rows.append([text, mapped_label])
+        # Classe 1 (Original) -> 0 (Dataset Final)
+        for text in data_store[1]:
+            final_rows.append([text, 0])
+            
+        # Classe 2 (Original) -> 1 (Dataset Final)
+        for text in data_store[2]:
+            final_rows.append([text, 1])
         
         df_result = pd.DataFrame(final_rows, columns=['text', 'polarity'])
         
         # Embaralha final
         df_result = df_result.sample(frac=1, random_state=42).reset_index(drop=True)
         
-        logger.info(f"Stratified sampling complete. Final shape: {df_result.shape}")
+        logger.info(f"Data processing complete. Final shape: {df_result.shape}")
+        logger.info(f"Class distribution: \n{df_result['polarity'].value_counts()}")
         
         if df_result.empty:
             raise ValueError("No data processed. Check input files and sampling criteria.")

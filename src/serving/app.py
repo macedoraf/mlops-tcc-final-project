@@ -60,7 +60,7 @@ def load_model_from_mlflow() -> Tuple[Optional[Any], Optional[str]]:
         mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow-server:5001")
         mlflow.set_tracking_uri(mlflow_uri)
         
-        model_name = "AmazonSentimentModel"
+        model_name = "AmazonSentimentModel_Best"
         stage = "Production"
         
         logger.info(f"Attempting to load model {model_name} (Stage: {stage}) from MLflow at {mlflow_uri}")
@@ -147,16 +147,13 @@ async def predict(request: PredictRequest, background_tasks: BackgroundTasks):
             # Fallback
             probability = 0.5
 
-        if prediction_class == 1:
-            sentiment = "NEGATIVE"
-            prediction_binary = 0
-        elif prediction_class == 2:
-            sentiment = "POSITIVE"
-            prediction_binary = 1
-        else:
-            # fallback: assume >1 é positivo
-            sentiment = "POSITIVE" if prediction_class > 1 else "NEGATIVE"
-            prediction_binary = 1 if prediction_class > 1 else 0
+        mapped_classes = {
+            0: "NEGATIVE",
+            1: "POSITIVE"
+        }
+
+        sentiment = mapped_classes.get(prediction_class, "UNKNOWN")
+        prediction_binary = prediction_class
 
         probability = float(probability)
 
