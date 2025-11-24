@@ -206,14 +206,14 @@ with DAG(
     # Task 2: Feast Apply (Register features)
     feast_apply = BashOperator(
         task_id='feast_apply',
-        bash_command=f'cd {FEATURE_STORE_PATH} && python3 -m feast apply',
+        bash_command=f'cd {FEATURE_STORE_PATH} && /home/airflow/.local/bin/feast apply',
     )
 
     # Task 3: Feast Materialize (Load to Redis)
     # Materialize from 1 year ago to now to ensure all data is loaded
     feast_materialize = BashOperator(
         task_id='feast_materialize',
-        bash_command=f'cd {FEATURE_STORE_PATH} && python3 -m feast materialize-incremental $(date -u +"%Y-%m-%dT%H:%M:%S")',
+        bash_command=f'cd {FEATURE_STORE_PATH} && /home/airflow/.local/bin/feast materialize-incremental $(date -u +"%Y-%m-%dT%H:%M:%S")',
     )
 
     extract_data >> process_data >> feast_apply >> feast_materialize

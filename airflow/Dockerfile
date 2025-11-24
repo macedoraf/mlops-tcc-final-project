@@ -10,4 +10,4 @@ RUN apt-get update \
 
 
 USER airflow
-RUN pip install feast redis pandas pyarrow fastparquet
+RUN pip install "numpy<2" "protobuf>=5.26.0" "proto-plus>=1.24.0" "google-api-core>=2.18.0" feast redis pandas pyarrow fastparquet
