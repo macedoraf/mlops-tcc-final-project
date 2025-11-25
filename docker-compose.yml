@@ -13,17 +13,16 @@ services:
 
   api-serving:
     build:
-      context: .
-      dockerfile: src/serving/Dockerfile
+      context: ./serving
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow-server:5001
     volumes:
       - ./data:/app/data
-      - ./src:/app/src
+      - ./serving/src:/app/src
       - ./model_logs:/app/logs
-      - ./mlflow_data:/Users/rafael/projects/machine-learning-tcc/mlflow_data
       - ./mlflow_data:/mlflow_data
       - ./feature_store:/app/feature_store
     depends_on:
@@ -33,11 +32,15 @@ services:
 
   frontend:
     build:
-      context: ./src/frontend
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "8501:8501"
     environment:
       - API_URL=http://api-serving:8000
+    volumes:
+      - ./frontend/src:/app/src
+    command: streamlit run src/app.py
     depends_on:
       - api-serving
     networks:
@@ -64,7 +67,8 @@ services:
 
   model-monitor:
     build:
-      context: ./src/monitoring
+      context: ./monitoring
+      dockerfile: Dockerfile
     environment:
       - PRODUCTION_LOGS_FILE=/app/logs/production_logs.jsonl
       - METRICS_PORT=8001
@@ -94,8 +98,8 @@ services:
 
   airflow-init:
     build:
-      context: .
-      dockerfile: airflow/Dockerfile
+      context: ./airflow
+      dockerfile: Dockerfile
     command: version
     environment:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
@@ -115,8 +119,8 @@ services:
 
   airflow-webserver:
     build:
-      context: .
-      dockerfile: airflow/Dockerfile
+      context: ./airflow
+      dockerfile: Dockerfile
     command: webserver
     restart: always
     depends_on:

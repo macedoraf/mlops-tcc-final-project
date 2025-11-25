@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN mkdir -p /app/logs /app/models
 
 # Install python dependencies
-COPY src/serving/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
@@ -30,4 +30,4 @@ ENV PRODUCTION_LOGS_FILE=/app/logs/production_logs.jsonl
 EXPOSE 8000
 
 # Command to run the app
-CMD ["uvicorn", "src.serving.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

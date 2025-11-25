@@ -8,7 +8,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import f1_score, accuracy_score, classification_report
 from sklearn.svm import LinearSVC
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
 import mlflow
@@ -28,13 +27,6 @@ def get_model_search_space(trial, model_name):
             "dual": "auto",
             "random_state": 42
         }
-    elif model_name == "RandomForest":
-        return {
-            "n_estimators": trial.suggest_int("n_estimators", 50, 200),
-            "max_depth": trial.suggest_int("max_depth", 5, 30),
-            "min_samples_split": trial.suggest_int("min_samples_split", 2, 10),
-            "random_state": 42
-        }
     elif model_name == "LogisticRegression":
         return {
             "C": trial.suggest_float("C", 0.1, 10.0, log=True),
@@ -52,7 +44,6 @@ def get_class_map():
     """Mapeia strings para classes do Scikit-Learn"""
     return {
         "LinearSVC": LinearSVC,
-        "RandomForest": RandomForestClassifier,
         "LogisticRegression": LogisticRegression,
         "MultinomialNB": MultinomialNB
     }
@@ -103,7 +94,7 @@ def train():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # Models definition
-    models_to_test = ["LinearSVC", "LogisticRegression", "RandomForest", "MultinomialNB"]
+    models_to_test = ["LinearSVC", "LogisticRegression", "MultinomialNB"]
     class_map = get_class_map()
 
     best_overall_f1 = -1

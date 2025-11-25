@@ -33,13 +33,13 @@ train_model = DockerOperator(
     image='sentiment-analysis-training:latest',
     api_version='auto',
     auto_remove=True,
-    command='python3 /app/train.py',
+    command='python3 /app/src/train.py',
     docker_url='unix://var/run/docker.sock',
     network_mode='machine-learning-tcc_mlops-network', # Must match the network name in docker-compose
     mounts=[
         Mount(source=f'{HOST_PROJECT_PATH}/feature_store', target='/feature_store', type='bind', read_only=True),
         Mount(source=f'{HOST_PROJECT_PATH}/data', target='/data', type='bind', read_only=True),
-        Mount(source=f'{HOST_PROJECT_PATH}/src/training', target='/app', type='bind', read_only=False),
+        Mount(source=f'{HOST_PROJECT_PATH}/training', target='/app', type='bind', read_only=False),
         Mount(source=f'{HOST_PROJECT_PATH}/mlflow_data', target='/mlflow_data', type='bind', read_only=False),
     ],
     environment={

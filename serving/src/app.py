@@ -12,14 +12,14 @@ import mlflow.sklearn
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from src.serving.schemas import (
+from src.schemas import (
     PredictRequest,
     PredictResponse,
     FeedbackRequest,
     FeedbackResponse,
     MetricsResponse
 )
-from src.serving.monitor import log_prediction, update_feedback, calculate_metrics
+from src.monitor import log_prediction, update_feedback, calculate_metrics
 
 # Logging setup
 logging.basicConfig(
@@ -28,6 +28,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+from fastapi.middleware.cors import CORSMiddleware
+
 # Initialize FastAPI app
 
 
@@ -35,6 +37,15 @@ app = FastAPI(
     title="Sentiment Analysis API",
     description="API for sentiment analysis with MLflow integration",
     version="1.0.0"
+)
+
+# CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for simplicity in this setup
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Instrumentator for Prometheus
